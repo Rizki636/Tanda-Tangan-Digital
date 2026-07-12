@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registri — Sistem Tanda Tangan Digital Pribadi</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="brand">Registri<small>buku register tanda tangan digital</small></div>
+    <nav>
+      <a href="sign.html">Tanda Tangan</a>
+      <a href="verify.html">Verifikasi</a>
+    </nav>
+  </header>
+  <div class="folio">Edisi Pribadi — Vol. I</div>
+
+  <h1 class="title">Setiap tanda tangan tercatat.<br>Setiap penyalinan, terdeteksi.</h1>
+  <p class="lede">
+    Registri adalah alat tanda tangan digital untuk penggunaan pribadi. Setiap kali Anda
+    menandatangani dokumen, sistem mencatat ID unik dan sidik dokumen (hash) ke dalam
+    buku register — sehingga siapa pun dapat memverifikasi keasliannya, dan tanda tangan
+    yang di-crop lalu ditempel ke dokumen lain akan langsung ketahuan tidak sah.
+  </p>
+
+  <div class="card" data-index="01">
+    <h2>Bubuhkan tanda tangan</h2>
+    <p>Untuk Anda sendiri. Memerlukan kata sandi pribadi Anda. Unggah dokumen, geser
+      stempel kode QR ke posisi yang Anda mau, lalu unduh dokumen yang sudah ditandatangani.</p>
+    <p style="margin-top:14px"><a class="btn" href="sign.html" style="text-decoration:none">Buka meja tanda tangan →</a></p>
+  </div>
+
+  <div class="card" data-index="02">
+    <h2>Verifikasi tanda tangan</h2>
+    <p>Untuk siapa saja yang menerima dokumen bertanda tangan dari Anda. Masukkan ID
+      verifikasi atau pindai kode QR pada dokumen untuk memastikan keasliannya.</p>
+    <p style="margin-top:14px"><a class="btn secondary" href="verify.html" style="text-decoration:none">Buka halaman verifikasi →</a></p>
+  </div>
+
+  <hr class="divider">
+
+  <p style="font-size:13.5px;color:var(--ink-soft)">
+    Cara kerja: stempel yang dibubuhkan berupa kode QR + keterangan singkat (bukan gambar
+    tanda tangan), jadi tidak ada apa pun yang bisa di-crop dan ditempel ulang sebagai
+    "tanda tangan lepas". Yang tersimpan di buku register hanyalah ID, waktu, judul
+    dokumen, identitas Anda, dan sidik (hash) dokumen — dokumen aslinya sendiri tidak
+    disimpan kecuali Anda secara sadar mengaktifkan fitur "lihat file digital" untuk
+    dokumen tertentu. Baca <code>README.md</code> pada repositori ini untuk panduan
+    pemasangan.
+  </p>
+
+  <div class="foot-note">REGISTRI · alat pribadi, bukan tanda tangan elektronik tersertifikasi hukum</div>
+</div>
+</body>
+</html>
