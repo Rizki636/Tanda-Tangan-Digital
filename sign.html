@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tanda Tangan — Registri</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  #pageWrap{
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    border: 1px solid var(--line);
+    background: #fff;
+    touch-action: none;
+    user-select: none;
+  }
+  #pageCanvas{ display:block; max-width:100%; height:auto; }
+  #stampBox{
+    position: absolute;
+    border: 2px solid var(--maroon);
+    background: rgba(138,46,51,0.10);
+    border-radius: 2px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--maroon);
+    text-align: center;
+    line-height: 1.3;
+    padding: 2px;
+    overflow: hidden;
+  }
+  #stampBox:active{ cursor: grabbing; }
+  .preset-row{ display:flex; gap:8px; flex-wrap: wrap; margin: 14px 0; }
+  .preset-row button{ background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .preset-row button:hover{ border-color: var(--brass); background: transparent; }
+  .toggle-row{ display:flex; align-items:flex-start; gap:12px; }
+  .toggle-row input[type="checkbox"]{ width:18px; height:18px; margin-top:2px; flex-shrink:0; }
+  .canvas-wrap{ overflow-x:auto; padding: 4px; background: var(--paper-2); border-radius: var(--radius); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="brand">Registri<small>meja tanda tangan</small></div>
+    <nav>
+      <a href="index.html">Beranda</a>
+      <a href="sign.html" class="active">Tanda Tangan</a>
+      <a href="verify.html">Verifikasi</a>
+    </nav>
+  </header>
+  <div class="folio">Entri Baru</div>
+
+  <h1 class="title">Bubuhkan tanda tangan</h1>
+  <p class="lede">
+    Halaman ini hanya untuk Anda. Kata sandi diperiksa di server (Apps Script), bukan di
+    peramban. Secara default, yang dibubuhkan ke dokumen hanya kode QR — polos, tanpa ID
+    atau keterangan apa pun tercetak, karena semua itu sudah bisa dilihat begitu QR-nya
+    dipindai. Kalau Anda mau, Anda bisa menambahkan teks bebas sendiri di atas/bawah QR
+    (misalnya format "Ditetapkan di ... / Pada tanggal ... / Jabatan / Instansi / Nama").
+  </p>
+
+  <div class="card" data-index="A">
+    <h2>1 — Kata sandi &amp; judul dokumen</h2>
+    <label for="passphrase">Kata sandi pribadi</label>
+    <input type="password" id="passphrase" autocomplete="off" placeholder="••••••••">
+    <label for="docTitle">Judul / keterangan dokumen</label>
+    <input type="text" id="docTitle" placeholder="Contoh: Surat Perjanjian Kerja — PT Maju Jaya">
+    <label for="reason">Jabatan / alasan menandatangani (opsional)</label>
+    <input type="text" id="reason" placeholder="Contoh: Menyetujui sebagai Pihak Pertama">
+    <p style="color:var(--ink-soft);font-size:12.5px;margin-top:8px">
+      Catatan: judul &amp; jabatan/alasan di atas hanya muncul di halaman verifikasi saat
+      QR dipindai — tidak ikut tercetak di dokumen. Kalau Anda mau teks ini (atau teks lain)
+      tercetak langsung di dokumen, ketik sendiri di bagian 4 di bawah.
+    </p>
+  </div>
+
+  <div class="card" data-index="B">
+    <h2>2 — Dokumen PDF yang akan ditandatangani</h2>
+    <input type="file" id="pdfFile" accept="application/pdf" style="display:none">
+    <div class="dropzone" id="pdfDrop"><strong>Klik untuk memilih file PDF</strong><br>atau seret file ke sini</div>
+    <div id="pdfInfo" class="hash" style="display:none;margin-top:10px"></div>
+  </div>
+
+  <div class="card" data-index="C">
+    <h2>3 — Izin melihat dokumen saat QR di-scan</h2>
+    <div class="toggle-row">
+      <input type="checkbox" id="showDocToggle">
+      <div>
+        <label style="margin:0;text-transform:none;font-family:var(--body);font-size:14.5px;letter-spacing:0;color:var(--ink);font-weight:600">
+          Izinkan siapa pun yang memindai QR ini membuka salinan dokumennya
+        </label>
+        <p style="color:var(--ink-soft);font-size:13px;margin:6px 0 0">
+          Kalau diaktifkan, dokumen (versi yang sudah distempel) disimpan ke Google Drive
+          Anda dengan akses "siapa saja yang punya link dapat melihat" — sehingga
+          <strong>bukan hanya penerima yang Anda maksud</strong> yang bisa membukanya,
+          melainkan siapa pun yang memiliki QR/link tersebut. Nonaktifkan untuk dokumen
+          yang isinya sebaiknya tidak terbuka untuk umum — verifikasi keaslian tetap
+          berjalan seperti biasa tanpa fitur ini.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-index="D">
+    <h2>4 — Ukuran &amp; teks di sekitar QR (opsional)</h2>
+    <label for="qrSizeInput">Ukuran kode QR dalam titik/pt (kosongkan untuk ukuran normal)</label>
+    <input type="text" id="qrSizeInput" inputmode="numeric" placeholder="Normal (100 pt)">
+    <label for="textAbove">Teks di atas QR (opsional — satu baris per teks)</label>
+    <textarea id="textAbove" rows="4" placeholder="Ditetapkan di Banjarbaru&#10;Pada tanggal 10 Juli 2026&#10;Direktur&#10;Poltekkes Kemenkes Banjarmasin"></textarea>
+    <label for="textBelow">Teks di bawah QR (opsional)</label>
+    <textarea id="textBelow" rows="2" placeholder="Nama Lengkap Anda"></textarea>
+    <p style="color:var(--ink-soft);font-size:12.5px;margin-top:8px">
+      Kosongkan kedua kotak teks ini kalau Anda mau stempel murni kode QR saja, tanpa
+      teks apa pun tercetak di dokumen.
+    </p>
+  </div>
+
+  <div class="card" data-index="E">
+    <h2>5 — Posisi stempel pada dokumen</h2>
+    <p style="margin-bottom:10px">Pilih halaman, lalu geser kotak merah ke posisi yang Anda mau — pakai jari di layar sentuh, atau mouse di desktop. Tombol di bawah ini cuma titik awal cepat, tetap bisa digeser bebas sesudahnya.</p>
+    <label for="pageSelect">Halaman</label>
+    <select id="pageSelect"></select>
+    <div class="preset-row">
+      <button type="button" class="preset" data-pos="tl">Kiri atas</button>
+      <button type="button" class="preset" data-pos="tr">Kanan atas</button>
+      <button type="button" class="preset" data-pos="bl">Kiri bawah</button>
+      <button type="button" class="preset" data-pos="br">Kanan bawah</button>
+    </div>
+    <div class="canvas-wrap" id="canvasWrap" style="display:none">
+      <div id="pageWrap">
+        <canvas id="pageCanvas"></canvas>
+        <div id="stampBox">QR</div>
+      </div>
+    </div>
+    <p id="previewHint" style="color:var(--ink-soft);font-size:13px;margin-top:10px">Pilih dokumen PDF dulu di atas untuk melihat pratinjau halaman.</p>
+  </div>
+
+  <button id="signBtn" style="width:100%;padding:16px">Catat &amp; bubuhkan tanda tangan</button>
+  <div id="status" style="margin-top:18px"></div>
+
+  <div id="resultCard" class="card" data-index="✓" style="display:none;margin-top:22px">
+    <h2>Tercatat di buku register</h2>
+    <p style="margin-bottom:12px">ID Verifikasi:</p>
+    <div class="hash" id="resultId"></div>
+    <p style="margin:16px 0 12px">Waktu tercatat:</p>
+    <div class="hash" id="resultTime"></div>
+    <p style="margin-top:18px"><a class="btn" id="downloadLink" download="dokumen-ditandatangani.pdf" style="text-decoration:none">Unduh dokumen bertanda tangan →</a></p>
+  </div>
+
+  <hr class="divider">
+  <div class="foot-note">Konfigurasi endpoint ada di bagian atas berkas ini (CONFIG.APPS_SCRIPT_URL / SITE_BASE_URL).</div>
+</div>
+
+<!-- pdf-lib untuk menyisipkan QR ke PDF, pdf.js untuk pratinjau halaman, qrcode untuk membuat kode QR -->
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="assets/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+/* ======================= KONFIGURASI ======================= *
+ * Ganti dua nilai ini setelah Anda deploy Apps Script & GitHub *
+ * Pages. Lihat README.md untuk langkah lengkapnya.             *
+ * ============================================================ */
+const CONFIG = {
+  APPS_SCRIPT_URL: "PASTE_URL_WEB_APP_APPS_SCRIPT_DI_SINI",
+  SITE_BASE_URL:   "https://USERNAME.github.io/NAMA-REPO"
+};
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const $ = (id) => document.getElementById(id);
+
+let pdfBytes = null, pdfDoc = null;      // pdf-lib (untuk menulis)
+let pdfjsDoc = null;                     // pdf.js (untuk pratinjau)
+let currentPageNum = 1;
+let renderScale = 1;                     // px layar per titik PDF, untuk halaman yang sedang tampil
+
+const DEFAULT_QR_SIZE_PT = 100;
+const TEXT_LINE_HEIGHT_PT = 12;
+const TEXT_BLOCK_W_PT = 190;
+const SECTION_GAP_PT = 5;
+
+function getLines(textareaId){
+  return $(textareaId).value.split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+function getQrSizePt(){
+  const raw = $('qrSizeInput').value.trim();
+  const n = parseFloat(raw);
+  return (raw && !isNaN(n) && n > 0) ? n : DEFAULT_QR_SIZE_PT;
+}
+
+// menghitung dimensi total stempel (dalam titik PDF) berdasarkan ukuran QR + jumlah baris teks
+function computeStampDimsPt(){
+  const qrSize = getQrSizePt();
+  const topLines = getLines('textAbove');
+  const bottomLines = getLines('textBelow');
+  const topH = topLines.length ? (topLines.length * TEXT_LINE_HEIGHT_PT + SECTION_GAP_PT) : 0;
+  const bottomH = bottomLines.length ? (bottomLines.length * TEXT_LINE_HEIGHT_PT + SECTION_GAP_PT) : 0;
+  const width = (topLines.length || bottomLines.length) ? Math.max(qrSize, TEXT_BLOCK_W_PT) : qrSize;
+  const height = topH + qrSize + bottomH;
+  return { qrSize, topLines, bottomLines, width, height };
+}
+
+function setupDrop(dropId, fileId, onFile){
+  const drop = $(dropId), input = $(fileId);
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault(); drop.classList.remove('drag');
+    if (e.dataTransfer.files[0]) { input.files = e.dataTransfer.files; onFile(e.dataTransfer.files[0]); }
+  });
+  input.addEventListener('change', () => { if (input.files[0]) onFile(input.files[0]); });
+}
+
+async function sha256(bytes){
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function arrayBufferToBase64(bytes){
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+// --- render halaman terpilih ke canvas pratinjau, lalu taruh ulang kotak stempel ---
+async function renderPage(pageNum){
+  const page = await pdfjsDoc.getPage(pageNum);
+  const baseViewport = page.getViewport({ scale: 1 });
+
+  const containerMaxWidth = Math.min(640, document.querySelector('.wrap').clientWidth - 48);
+  renderScale = containerMaxWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale: renderScale });
+
+  const canvas = $('pageCanvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  $('canvasWrap').style.display = 'block';
+  $('previewHint').style.display = 'none';
+
+  updateStampBoxSize();
+  placePreset('br'); // posisi awal default
+}
+
+function updateStampBoxSize(){
+  const { width, height } = computeStampDimsPt();
+  const stamp = $('stampBox');
+  const canvas = $('pageCanvas');
+  const prevW = parseFloat(stamp.style.width) || 0;
+  const prevH = parseFloat(stamp.style.height) || 0;
+  stamp.style.width = (width * renderScale) + 'px';
+  stamp.style.height = (height * renderScale) + 'px';
+  // jaga stempel tetap di dalam batas kanvas kalau ukurannya berubah
+  if (canvas.width && canvas.height) {
+    let left = parseFloat(stamp.style.left) || 0;
+    let top = parseFloat(stamp.style.top) || 0;
+    left = Math.max(0, Math.min(left, canvas.width - parseFloat(stamp.style.width)));
+    top = Math.max(0, Math.min(top, canvas.height - parseFloat(stamp.style.height)));
+    stamp.style.left = left + 'px';
+    stamp.style.top = top + 'px';
+  }
+}
+
+['qrSizeInput','textAbove','textBelow'].forEach(id => {
+  $(id).addEventListener('input', () => { if (pdfjsDoc) updateStampBoxSize(); });
+});
+
+function placePreset(pos){
+  const stamp = $('stampBox');
+  const canvas = $('pageCanvas');
+  const m = 10; // margin layar dalam px
+  const w = parseFloat(stamp.style.width), h = parseFloat(stamp.style.height);
+  let left, top;
+  if (pos === 'br') { left = canvas.width - w - m;  top = canvas.height - h - m; }
+  if (pos === 'bl') { left = m;                     top = canvas.height - h - m; }
+  if (pos === 'tr') { left = canvas.width - w - m;  top = m; }
+  if (pos === 'tl') { left = m;                     top = m; }
+  stamp.style.left = left + 'px';
+  stamp.style.top = top + 'px';
+}
+
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.addEventListener('click', () => placePreset(btn.dataset.pos));
+});
+
+// --- geser stempel pakai mouse ATAU jari (Pointer Events menyatukan keduanya) ---
+(function enableDrag(){
+  const stamp = $('stampBox');
+  const wrap = $('pageWrap');
+  let dragging = false, offX = 0, offY = 0;
+
+  stamp.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    stamp.setPointerCapture(e.pointerId);
+    const r = stamp.getBoundingClientRect();
+    offX = e.clientX - r.left;
+    offY = e.clientY - r.top;
+  });
+  stamp.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const wrapR = wrap.getBoundingClientRect();
+    let left = e.clientX - wrapR.left - offX;
+    let top = e.clientY - wrapR.top - offY;
+    const maxLeft = wrap.clientWidth - stamp.offsetWidth;
+    const maxTop = wrap.clientHeight - stamp.offsetHeight;
+    left = Math.max(0, Math.min(left, maxLeft));
+    top = Math.max(0, Math.min(top, maxTop));
+    stamp.style.left = left + 'px';
+    stamp.style.top = top + 'px';
+  });
+  stamp.addEventListener('pointerup', (e) => { dragging = false; stamp.releasePointerCapture(e.pointerId); });
+})();
+
+setupDrop('pdfDrop', 'pdfFile', async (file) => {
+  pdfBytes = new Uint8Array(await file.arrayBuffer());
+  pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+  pdfjsDoc = await pdfjsLib.getDocument({ data: pdfBytes.slice() }).promise;
+
+  const hash = await sha256(pdfBytes);
+  $('pdfInfo').style.display = 'block';
+  $('pdfInfo').textContent = `${file.name} · sha256:${hash}`;
+
+  const sel = $('pageSelect');
+  sel.innerHTML = '';
+  for (let i = 1; i <= pdfjsDoc.numPages; i++){
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = `Halaman ${i}`;
+    if (i === pdfjsDoc.numPages) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  currentPageNum = pdfjsDoc.numPages;
+  await renderPage(currentPageNum);
+});
+
+$('pageSelect').addEventListener('change', async (e) => {
+  currentPageNum = parseInt(e.target.value, 10);
+  await renderPage(currentPageNum);
+});
+
+function banner(kind, html){
+  $('status').innerHTML = `<div class="banner ${kind}">${html}</div>`;
+}
+
+$('signBtn').addEventListener('click', async () => {
+  const passphrase = $('passphrase').value.trim();
+  const docTitle = $('docTitle').value.trim() || '(tanpa judul)';
+  const reason = $('reason').value.trim();
+  const showDocument = $('showDocToggle').checked;
+
+  if (!passphrase) return banner('err', 'Isi kata sandi pribadi Anda dahulu.');
+  if (!pdfBytes || !pdfDoc) return banner('err', 'Pilih dokumen PDF terlebih dahulu.');
+  if (CONFIG.APPS_SCRIPT_URL.startsWith('PASTE_')) return banner('err', 'CONFIG.APPS_SCRIPT_URL belum diisi — lihat README.md.');
+
+  $('signBtn').disabled = true;
+  banner('info', 'Menghitung sidik dokumen dan mencatat ke buku register…');
+
+  try {
+    const originalHash = await sha256(pdfBytes);
+
+    const body = new URLSearchParams({
+      action: 'sign', passphrase, documentTitle: docTitle, originalHash, reason,
+      showDocument: showDocument ? 'yes' : 'no'
+    });
+    const res = await fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body });
+    const data = await res.json();
+
+    if (!data.success) {
+      banner('err', data.message || 'Kata sandi salah atau permintaan ditolak server.');
+      $('signBtn').disabled = false;
+      return;
+    }
+
+    banner('info', 'Tercatat. Membubuhkan stempel pada dokumen…');
+
+    const verifyUrl = `${CONFIG.SITE_BASE_URL}/verify.html?id=${data.recordId}`;
+    const { qrSize, topLines, bottomLines, width: stampW, height: stampH } = computeStampDimsPt();
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: Math.round(qrSize * 4) });
+
+    const stampEl = $('stampBox');
+    const canvasEl = $('pageCanvas');
+    const fx = parseFloat(stampEl.style.left) / canvasEl.width;
+    const fy = parseFloat(stampEl.style.top) / canvasEl.height;
+
+    const page = pdfDoc.getPages()[currentPageNum - 1];
+    const { width, height } = page.getSize();
+    const stampX = fx * width;
+    const stampTopY = height - (fy * height); // sisi ATAS kotak stempel, dalam koordinat PDF (y ke atas)
+
+    const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+    let cursorY = stampTopY;
+
+    topLines.forEach(line => {
+      cursorY -= TEXT_LINE_HEIGHT_PT;
+      page.drawText(line, { x: stampX, y: cursorY + 2, size: 9, font, color: PDFLib.rgb(0.1,0.1,0.1), maxWidth: stampW });
+    });
+    if (topLines.length) cursorY -= SECTION_GAP_PT;
+
+    const qrBytes = Uint8Array.from(atob(qrDataUrl.split(',')[1]), c => c.charCodeAt(0));
+    const qrImg = await pdfDoc.embedPng(qrBytes);
+    cursorY -= qrSize;
+    page.drawImage(qrImg, { x: stampX, y: cursorY, width: qrSize, height: qrSize });
+
+    if (bottomLines.length) cursorY -= SECTION_GAP_PT;
+    bottomLines.forEach(line => {
+      cursorY -= TEXT_LINE_HEIGHT_PT;
+      page.drawText(line, { x: stampX, y: cursorY + 2, size: 9, font, color: PDFLib.rgb(0.1,0.1,0.1), maxWidth: stampW });
+    });
+
+    const finalBytes = await pdfDoc.save();
+    const finalHash = await sha256(finalBytes);
+
+    banner('info', showDocument ? 'Mengunggah salinan dokumen ke Drive & mencatat sidik akhir…' : 'Mencatat sidik akhir dokumen…');
+
+    const finalizeParams = { action: 'finalize', passphrase, id: data.recordId, finalHash };
+    if (showDocument) {
+      finalizeParams.fileBase64 = arrayBufferToBase64(finalBytes);
+    }
+    const finalizeRes = await fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: new URLSearchParams(finalizeParams) });
+    const finalizeData = await finalizeRes.json();
+    if (!finalizeData.success) {
+      banner('err', 'Stempel berhasil dibuat, tapi gagal mencatat sidik akhir: ' + (finalizeData.message || 'kesalahan tidak diketahui') + '. Dokumen tetap bisa diunduh, tapi verifikasi integritas mungkin tidak berfungsi.');
+    }
+
+    const blob = new Blob([finalBytes], { type: 'application/pdf' });
+    $('downloadLink').href = URL.createObjectURL(blob);
+
+    $('resultId').textContent = data.recordId;
+    $('resultTime').textContent = data.timestamp;
+    $('resultCard').style.display = 'block';
+    if (finalizeData.success) {
+      banner('ok', 'Selesai. Dokumen sudah dibubuhi stempel QR dan tercatat di buku register.');
+    }
+  } catch (err) {
+    console.error(err);
+    banner('err', 'Terjadi kesalahan: ' + err.message);
+  } finally {
+    $('signBtn').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
